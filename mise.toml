@@ -1,3 +1,4 @@
 [tools]
 rust = "latest"
 typst = "latest"
+zig = "latest"
