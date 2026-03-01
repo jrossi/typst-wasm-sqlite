@@ -1,6 +1,6 @@
 [tools]
-typst = "latest"
-zig = "latest"
+typst = "0.14.2"
+zig = "0.15.2"
 
 [tasks.build]
 description = "Build WASM plugin (release)"
