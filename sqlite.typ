@@ -19,11 +19,7 @@
     /// Returns a dictionary with `columns` and `rows` keys
     query: (sql) => {
       let result_bytes = _plugin.query(db_bytes, bytes(sql))
-      let result = json(result_bytes)
-      if "error" in result {
-        panic("SQLite error: " + result.error)
-      }
-      result
+      json(result_bytes)
     },
 
     /// List all table names in the database
@@ -35,11 +31,7 @@
     /// Get schema information for a table
     schema: (table_name) => {
       let result_bytes = _plugin.schema(db_bytes, bytes(table_name))
-      let result = json(result_bytes)
-      if "error" in result {
-        panic("SQLite error: " + result.error)
-      }
-      result
+      json(result_bytes)
     },
 
     /// Raw database bytes (for advanced use)
@@ -55,16 +47,12 @@
 /// #sqlite-table(db.query("SELECT name, population FROM cities"))
 /// ```
 #let sqlite-table(result, ..args) = {
-  if "error" in result {
-    [*Error:* #result.error]
-  } else {
-    table(
-      columns: result.columns.len(),
-      ..args,
-      ..result.columns.map(c => [*#c*]),
-      ..result.rows.flatten().map(v => [#v])
-    )
-  }
+  table(
+    columns: result.columns.len(),
+    ..args,
+    ..result.columns.map(c => [*#c*]),
+    ..result.rows.flatten().map(v => [#v])
+  )
 }
 
 /// Query a database and return results as table-ready data
@@ -80,12 +68,8 @@
 /// ```
 #let query-table(db, sql) = {
   let result = (db.query)(sql)
-  if "error" in result {
-    ([*Error:* #result.error],)
-  } else {
-    (
-      ..result.columns.map(c => [*#c*]),
-      ..result.rows.flatten().map(v => [#v])
-    )
-  }
+  (
+    ..result.columns.map(c => [*#c*]),
+    ..result.rows.flatten().map(v => [#v])
+  )
 }

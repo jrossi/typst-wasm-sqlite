@@ -1,5 +1,4 @@
 # Build output
-/target
 /zig-out/
 /.zig-cache/
 

@@ -1,6 +1,5 @@
 const std = @import("std");
-const json = @import("json.zig");
-const JsonWriter = json.JsonWriter;
+const JsonWriter = @import("json.zig").JsonWriter;
 const sqlite = @cImport({
     @cInclude("sqlite3.h");
 });
