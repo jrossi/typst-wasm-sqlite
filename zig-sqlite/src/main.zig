@@ -7,8 +7,8 @@ const sqlite = @cImport({
 // Typst Plugin Protocol
 // =============================================================================
 
-extern fn wasm_minimal_protocol_write_args_to_buffer(ptr: [*]u8) void;
-extern fn wasm_minimal_protocol_send_result_to_host(ptr: [*]const u8, len: usize) void;
+extern "typst_env" fn wasm_minimal_protocol_write_args_to_buffer(ptr: [*]u8) void;
+extern "typst_env" fn wasm_minimal_protocol_send_result_to_host(ptr: [*]const u8, len: usize) void;
 
 fn sendResult(data: []const u8) void {
     wasm_minimal_protocol_send_result_to_host(data.ptr, data.len);
@@ -53,12 +53,12 @@ const MemFile = struct {
     pos: usize,
 };
 
-fn memClose(file: *sqlite.sqlite3_file) callconv(.C) c_int {
+fn memClose(file: [*c]sqlite.sqlite3_file) callconv(.c) c_int {
     _ = file;
     return sqlite.SQLITE_OK;
 }
 
-fn memRead(file: *sqlite.sqlite3_file, buf: ?*anyopaque, amt: c_int, offset: sqlite.sqlite3_int64) callconv(.C) c_int {
+fn memRead(file: [*c]sqlite.sqlite3_file, buf: ?*anyopaque, amt: c_int, offset: sqlite.sqlite3_int64) callconv(.c) c_int {
     const f: *MemFile = @ptrCast(@alignCast(file));
     const off: usize = @intCast(offset);
     const amount: usize = @intCast(amt);
@@ -82,46 +82,46 @@ fn memRead(file: *sqlite.sqlite3_file, buf: ?*anyopaque, amt: c_int, offset: sql
     return sqlite.SQLITE_OK;
 }
 
-fn memWrite(_: *sqlite.sqlite3_file, _: ?*const anyopaque, _: c_int, _: sqlite.sqlite3_int64) callconv(.C) c_int {
+fn memWrite(_: [*c]sqlite.sqlite3_file, _: ?*const anyopaque, _: c_int, _: sqlite.sqlite3_int64) callconv(.c) c_int {
     return sqlite.SQLITE_READONLY;
 }
 
-fn memTruncate(_: *sqlite.sqlite3_file, _: sqlite.sqlite3_int64) callconv(.C) c_int {
+fn memTruncate(_: [*c]sqlite.sqlite3_file, _: sqlite.sqlite3_int64) callconv(.c) c_int {
     return sqlite.SQLITE_READONLY;
 }
 
-fn memSync(_: *sqlite.sqlite3_file, _: c_int) callconv(.C) c_int {
+fn memSync(_: [*c]sqlite.sqlite3_file, _: c_int) callconv(.c) c_int {
     return sqlite.SQLITE_OK;
 }
 
-fn memFileSize(file: *sqlite.sqlite3_file, size: *sqlite.sqlite3_int64) callconv(.C) c_int {
+fn memFileSize(file: [*c]sqlite.sqlite3_file, size: [*c]sqlite.sqlite3_int64) callconv(.c) c_int {
     const f: *MemFile = @ptrCast(@alignCast(file));
     size.* = @intCast(f.size);
     return sqlite.SQLITE_OK;
 }
 
-fn memLock(_: *sqlite.sqlite3_file, _: c_int) callconv(.C) c_int {
+fn memLock(_: [*c]sqlite.sqlite3_file, _: c_int) callconv(.c) c_int {
     return sqlite.SQLITE_OK;
 }
 
-fn memUnlock(_: *sqlite.sqlite3_file, _: c_int) callconv(.C) c_int {
+fn memUnlock(_: [*c]sqlite.sqlite3_file, _: c_int) callconv(.c) c_int {
     return sqlite.SQLITE_OK;
 }
 
-fn memCheckReservedLock(_: *sqlite.sqlite3_file, out: *c_int) callconv(.C) c_int {
+fn memCheckReservedLock(_: [*c]sqlite.sqlite3_file, out: [*c]c_int) callconv(.c) c_int {
     out.* = 0;
     return sqlite.SQLITE_OK;
 }
 
-fn memFileControl(_: *sqlite.sqlite3_file, _: c_int, _: ?*anyopaque) callconv(.C) c_int {
+fn memFileControl(_: [*c]sqlite.sqlite3_file, _: c_int, _: ?*anyopaque) callconv(.c) c_int {
     return sqlite.SQLITE_NOTFOUND;
 }
 
-fn memSectorSize(_: *sqlite.sqlite3_file) callconv(.C) c_int {
+fn memSectorSize(_: [*c]sqlite.sqlite3_file) callconv(.c) c_int {
     return 4096;
 }
 
-fn memDeviceCharacteristics(_: *sqlite.sqlite3_file) callconv(.C) c_int {
+fn memDeviceCharacteristics(_: [*c]sqlite.sqlite3_file) callconv(.c) c_int {
     return sqlite.SQLITE_IOCAP_IMMUTABLE;
 }
 
@@ -151,7 +151,7 @@ const mem_io_methods = sqlite.sqlite3_io_methods{
 var current_db_data: [*]const u8 = undefined;
 var current_db_size: usize = 0;
 
-fn vfsOpen(_: *sqlite.sqlite3_vfs, _: [*c]const u8, file: *sqlite.sqlite3_file, _: c_int, _: *c_int) callconv(.C) c_int {
+fn vfsOpen(_: [*c]sqlite.sqlite3_vfs, _: [*c]const u8, file: [*c]sqlite.sqlite3_file, _: c_int, _: [*c]c_int) callconv(.c) c_int {
     const f: *MemFile = @ptrCast(@alignCast(file));
     f.base.pMethods = &mem_io_methods;
     f.data = current_db_data;
@@ -160,16 +160,16 @@ fn vfsOpen(_: *sqlite.sqlite3_vfs, _: [*c]const u8, file: *sqlite.sqlite3_file, 
     return sqlite.SQLITE_OK;
 }
 
-fn vfsDelete(_: *sqlite.sqlite3_vfs, _: [*c]const u8, _: c_int) callconv(.C) c_int {
+fn vfsDelete(_: [*c]sqlite.sqlite3_vfs, _: [*c]const u8, _: c_int) callconv(.c) c_int {
     return sqlite.SQLITE_READONLY;
 }
 
-fn vfsAccess(_: *sqlite.sqlite3_vfs, _: [*c]const u8, _: c_int, out: *c_int) callconv(.C) c_int {
+fn vfsAccess(_: [*c]sqlite.sqlite3_vfs, _: [*c]const u8, _: c_int, out: [*c]c_int) callconv(.c) c_int {
     out.* = 1;
     return sqlite.SQLITE_OK;
 }
 
-fn vfsFullPathname(_: *sqlite.sqlite3_vfs, name: [*c]const u8, n: c_int, out: [*c]u8) callconv(.C) c_int {
+fn vfsFullPathname(_: [*c]sqlite.sqlite3_vfs, name: [*c]const u8, n: c_int, out: [*c]u8) callconv(.c) c_int {
     const len = std.mem.len(name);
     const copy_len = @min(len, @as(usize, @intCast(n - 1)));
     @memcpy(out[0..copy_len], name[0..copy_len]);
@@ -177,21 +177,21 @@ fn vfsFullPathname(_: *sqlite.sqlite3_vfs, name: [*c]const u8, n: c_int, out: [*
     return sqlite.SQLITE_OK;
 }
 
-fn vfsRandomness(_: *sqlite.sqlite3_vfs, n: c_int, out: [*c]u8) callconv(.C) c_int {
+fn vfsRandomness(_: [*c]sqlite.sqlite3_vfs, n: c_int, out: [*c]u8) callconv(.c) c_int {
     @memset(out[0..@intCast(n)], 0);
     return n;
 }
 
-fn vfsSleep(_: *sqlite.sqlite3_vfs, _: c_int) callconv(.C) c_int {
+fn vfsSleep(_: [*c]sqlite.sqlite3_vfs, _: c_int) callconv(.c) c_int {
     return sqlite.SQLITE_OK;
 }
 
-fn vfsCurrentTime(_: *sqlite.sqlite3_vfs, out: *f64) callconv(.C) c_int {
+fn vfsCurrentTime(_: [*c]sqlite.sqlite3_vfs, out: [*c]f64) callconv(.c) c_int {
     out.* = 2440587.5; // Unix epoch as Julian day
     return sqlite.SQLITE_OK;
 }
 
-fn vfsGetLastError(_: *sqlite.sqlite3_vfs, _: c_int, _: [*c]u8) callconv(.C) c_int {
+fn vfsGetLastError(_: [*c]sqlite.sqlite3_vfs, _: c_int, _: [*c]u8) callconv(.c) c_int {
     return 0;
 }
 
@@ -220,12 +220,16 @@ var mem_vfs = sqlite.sqlite3_vfs{
     .xNextSystemCall = null,
 };
 
-var vfs_registered = false;
+var sqlite_initialized = false;
 
-fn initVfs() void {
-    if (!vfs_registered) {
-        _ = sqlite.sqlite3_vfs_register(&mem_vfs, 0);
-        vfs_registered = true;
+fn initSqlite() void {
+    if (!sqlite_initialized) {
+        // Initialize SQLite (required since we use SQLITE_OMIT_AUTOINIT)
+        _ = sqlite.sqlite3_initialize();
+
+        // Register our custom VFS
+        _ = sqlite.sqlite3_vfs_register(&mem_vfs, 1); // make it default
+        sqlite_initialized = true;
     }
 }
 
@@ -234,7 +238,7 @@ fn initVfs() void {
 // =============================================================================
 
 fn openDatabase(db_bytes: []const u8) ?*sqlite.sqlite3 {
-    initVfs();
+    initSqlite();
 
     current_db_data = db_bytes.ptr;
     current_db_size = db_bytes.len;
@@ -248,7 +252,7 @@ fn openDatabase(db_bytes: []const u8) ?*sqlite.sqlite3 {
     );
 
     if (rc != sqlite.SQLITE_OK) {
-        if (db != null) sqlite.sqlite3_close(db);
+        if (db != null) _ = sqlite.sqlite3_close(db);
         return null;
     }
 
@@ -318,7 +322,7 @@ const JsonWriter = struct {
         } else {
             while (v > 0) {
                 i -= 1;
-                buf[i] = @intCast((v % 10) + '0');
+                buf[i] = @intCast(@rem(v, 10) + '0');
                 v = @divTrunc(v, 10);
             }
         }
