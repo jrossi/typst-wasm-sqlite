@@ -10,9 +10,29 @@ run = "zig build -Doptimize=ReleaseSmall"
 description = "Build WASM plugin (debug)"
 run = "zig build"
 
+[tasks.test-unit]
+description = "Run Zig unit tests"
+run = "zig build test"
+
+[tasks.gen-testdb]
+description = "Generate test database"
+run = "zig build gen-testdb"
+
+[tasks.test-integration]
+description = "Build and run Typst integration tests"
+run = ["zig build gen-testdb", "zig build -Doptimize=ReleaseSmall", "typst compile test.typ test.pdf"]
+
 [tasks.test]
-description = "Build and test with Typst"
-run = ["zig build -Doptimize=ReleaseSmall", "typst compile test.typ test.pdf"]
+description = "Run all tests"
+run = ["zig build test", "zig build gen-testdb", "zig build -Doptimize=ReleaseSmall", "typst compile test.typ test.pdf"]
+
+[tasks.pre-commit]
+description = "Pre-commit hook: run unit tests"
+run = "zig build test"
+
+[tasks.pre-push]
+description = "Pre-push hook: run all tests"
+run = ["zig build test", "zig build gen-testdb", "zig build -Doptimize=ReleaseSmall", "typst compile test.typ test.pdf"]
 
 [tasks.download-sqlite]
 description = "Download SQLite amalgamation"

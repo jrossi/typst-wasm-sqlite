@@ -79,7 +79,7 @@
 /// )
 /// ```
 #let query-table(db, sql) = {
-  let result = db.query(sql)
+  let result = (db.query)(sql)
   if "error" in result {
     ([*Error:* #result.error],)
   } else {

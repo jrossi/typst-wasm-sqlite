@@ -1,4 +1,6 @@
 const std = @import("std");
+const json = @import("json.zig");
+const JsonWriter = json.JsonWriter;
 const sqlite = @cImport({
     @cInclude("sqlite3.h");
 });
@@ -260,93 +262,20 @@ fn openDatabase(db_bytes: []const u8) ?*sqlite.sqlite3 {
 }
 
 // =============================================================================
-// JSON Output Helpers
+// Validation Helpers
 // =============================================================================
 
-const JsonWriter = struct {
-    buf: []u8,
-    pos: usize,
-
-    fn init(buffer: []u8) JsonWriter {
-        return .{ .buf = buffer, .pos = 0 };
-    }
-
-    fn write(self: *JsonWriter, data: []const u8) void {
-        const remaining = self.buf.len - self.pos;
-        const to_write = @min(data.len, remaining);
-        @memcpy(self.buf[self.pos..][0..to_write], data[0..to_write]);
-        self.pos += to_write;
-    }
-
-    fn writeChar(self: *JsonWriter, c: u8) void {
-        if (self.pos < self.buf.len) {
-            self.buf[self.pos] = c;
-            self.pos += 1;
-        }
-    }
-
-    fn writeEscaped(self: *JsonWriter, s: []const u8) void {
-        for (s) |c| {
-            switch (c) {
-                '"' => self.write("\\\""),
-                '\\' => self.write("\\\\"),
-                '\n' => self.write("\\n"),
-                '\r' => self.write("\\r"),
-                '\t' => self.write("\\t"),
-                else => {
-                    if (c < 32) {
-                        self.write("\\u00");
-                        const hex = "0123456789abcdef";
-                        self.writeChar(hex[c >> 4]);
-                        self.writeChar(hex[c & 0xf]);
-                    } else {
-                        self.writeChar(c);
-                    }
-                },
-            }
-        }
-    }
-
-    fn writeInt(self: *JsonWriter, value: i64) void {
-        var buf: [21]u8 = undefined;
-        var v = value;
-        var neg = false;
-        if (v < 0) {
-            neg = true;
-            v = -v;
-        }
-        var i: usize = buf.len;
-        if (v == 0) {
-            i -= 1;
-            buf[i] = '0';
+fn isValidTableName(name: []const u8) bool {
+    if (name.len == 0) return false;
+    for (name, 0..) |c, i| {
+        if (i == 0) {
+            if (!std.ascii.isAlphabetic(c) and c != '_') return false;
         } else {
-            while (v > 0) {
-                i -= 1;
-                buf[i] = @intCast(@rem(v, 10) + '0');
-                v = @divTrunc(v, 10);
-            }
+            if (!std.ascii.isAlphanumeric(c) and c != '_') return false;
         }
-        if (neg) {
-            i -= 1;
-            buf[i] = '-';
-        }
-        self.write(buf[i..]);
     }
-
-    fn writeFloat(self: *JsonWriter, value: f64) void {
-        // Simple float formatting
-        var buf: [32]u8 = undefined;
-        const result = std.fmt.bufPrint(&buf, "{d}", .{value}) catch {
-            self.write("0");
-            return;
-        };
-        self.write(result);
-    }
-
-    fn getResult(self: *JsonWriter) []const u8 {
-        return self.buf[0..self.pos];
-    }
-};
+    return true;
+}
 
 // =============================================================================
 // Exported Plugin Functions
@@ -395,67 +324,69 @@ export fn query(db_len: i32, sql_len: i32) i32 {
         sendError("out of memory for output");
         return 1;
     };
-    var json = JsonWriter.init(out_buf[0 .. 1024 * 1024]);
+    var jw = JsonWriter.init(out_buf[0 .. 1024 * 1024]);
 
-    json.write("{\"columns\":[");
+    jw.write("{\"columns\":[");
 
     const col_count = sqlite.sqlite3_column_count(stmt);
     var i: c_int = 0;
     while (i < col_count) : (i += 1) {
-        if (i > 0) json.writeChar(',');
-        json.writeChar('"');
+        if (i > 0) jw.writeChar(',');
+        jw.writeChar('"');
         const name = sqlite.sqlite3_column_name(stmt, i);
         if (name != null) {
-            json.writeEscaped(std.mem.span(name));
+            jw.writeEscaped(std.mem.span(name));
         }
-        json.writeChar('"');
+        jw.writeChar('"');
     }
 
-    json.write("],\"rows\":[");
+    jw.write("],\"rows\":[");
 
     var first_row = true;
     while (sqlite.sqlite3_step(stmt) == sqlite.SQLITE_ROW) {
-        if (!first_row) json.writeChar(',');
+        if (!first_row) jw.writeChar(',');
         first_row = false;
 
-        json.writeChar('[');
+        jw.writeChar('[');
         var j: c_int = 0;
         while (j < col_count) : (j += 1) {
-            if (j > 0) json.writeChar(',');
+            if (j > 0) jw.writeChar(',');
 
             const col_type = sqlite.sqlite3_column_type(stmt, j);
             switch (col_type) {
-                sqlite.SQLITE_NULL => json.write("null"),
+                sqlite.SQLITE_NULL => jw.write("null"),
                 sqlite.SQLITE_INTEGER => {
                     const val = sqlite.sqlite3_column_int64(stmt, j);
-                    json.writeInt(val);
+                    jw.writeInt(val);
                 },
                 sqlite.SQLITE_FLOAT => {
                     const val = sqlite.sqlite3_column_double(stmt, j);
-                    json.writeFloat(val);
+                    jw.writeFloat(val);
                 },
                 sqlite.SQLITE_TEXT => {
-                    json.writeChar('"');
+                    jw.writeChar('"');
                     const text = sqlite.sqlite3_column_text(stmt, j);
                     const len: usize = @intCast(sqlite.sqlite3_column_bytes(stmt, j));
                     if (text != null) {
-                        json.writeEscaped(text[0..len]);
+                        jw.writeEscaped(text[0..len]);
                     }
-                    json.writeChar('"');
+                    jw.writeChar('"');
                 },
                 sqlite.SQLITE_BLOB => {
-                    // Encode blob as hex string
-                    json.write("\"<blob>\"");
+                    jw.write("\"<blob>\"");
                 },
-                else => json.write("null"),
+                else => jw.write("null"),
             }
         }
-        json.writeChar(']');
+        jw.writeChar(']');
     }
 
-    json.write("]}");
+    jw.write("]}");
 
-    sendResult(json.getResult());
+    sendResult(jw.getResult() orelse {
+        sendError("output buffer overflow");
+        return 1;
+    });
     return 0;
 }
 
@@ -489,25 +420,28 @@ export fn tables(db_len: i32) i32 {
         sendError("out of memory for output");
         return 1;
     };
-    var json = JsonWriter.init(out_buf[0 .. 64 * 1024]);
+    var jw = JsonWriter.init(out_buf[0 .. 64 * 1024]);
 
-    json.writeChar('[');
+    jw.writeChar('[');
     var first = true;
     while (sqlite.sqlite3_step(stmt) == sqlite.SQLITE_ROW) {
-        if (!first) json.writeChar(',');
+        if (!first) jw.writeChar(',');
         first = false;
 
-        json.writeChar('"');
+        jw.writeChar('"');
         const name = sqlite.sqlite3_column_text(stmt, 0);
         const len: usize = @intCast(sqlite.sqlite3_column_bytes(stmt, 0));
         if (name != null) {
-            json.writeEscaped(name[0..len]);
+            jw.writeEscaped(name[0..len]);
         }
-        json.writeChar('"');
+        jw.writeChar('"');
     }
-    json.writeChar(']');
+    jw.writeChar(']');
 
-    sendResult(json.getResult());
+    sendResult(jw.getResult() orelse {
+        sendError("output buffer overflow");
+        return 1;
+    });
     return 0;
 }
 
@@ -524,13 +458,18 @@ export fn schema(db_len: i32, table_len: i32) i32 {
     const db_bytes = buf[0..@intCast(db_len)];
     const table_name = buf[@intCast(db_len)..][0..@intCast(table_len)];
 
+    if (!isValidTableName(table_name)) {
+        sendError("invalid table name");
+        return 1;
+    }
+
     const db = openDatabase(db_bytes) orelse {
         sendError("failed to open database");
         return 1;
     };
     defer _ = sqlite.sqlite3_close(db);
 
-    // Build PRAGMA query
+    // Build PRAGMA query (table_name validated above)
     var pragma_buf: [256]u8 = undefined;
     const pragma = std.fmt.bufPrint(&pragma_buf, "PRAGMA table_info({s})", .{table_name}) catch {
         sendError("table name too long");
@@ -549,32 +488,35 @@ export fn schema(db_len: i32, table_len: i32) i32 {
         sendError("out of memory for output");
         return 1;
     };
-    var json = JsonWriter.init(out_buf[0 .. 64 * 1024]);
+    var jw = JsonWriter.init(out_buf[0 .. 64 * 1024]);
 
-    json.write("{\"columns\":[");
+    jw.write("{\"columns\":[");
 
     var first = true;
     while (sqlite.sqlite3_step(stmt) == sqlite.SQLITE_ROW) {
-        if (!first) json.writeChar(',');
+        if (!first) jw.writeChar(',');
         first = false;
 
-        json.write("{\"name\":\"");
+        jw.write("{\"name\":\"");
         const name = sqlite.sqlite3_column_text(stmt, 1);
         const name_len: usize = @intCast(sqlite.sqlite3_column_bytes(stmt, 1));
         if (name != null) {
-            json.writeEscaped(name[0..name_len]);
+            jw.writeEscaped(name[0..name_len]);
         }
-        json.write("\",\"type\":\"");
+        jw.write("\",\"type\":\"");
         const typ = sqlite.sqlite3_column_text(stmt, 2);
         const typ_len: usize = @intCast(sqlite.sqlite3_column_bytes(stmt, 2));
         if (typ != null) {
-            json.writeEscaped(typ[0..typ_len]);
+            jw.writeEscaped(typ[0..typ_len]);
         }
-        json.write("\"}");
+        jw.write("\"}");
     }
 
-    json.write("]}");
+    jw.write("]}");
 
-    sendResult(json.getResult());
+    sendResult(jw.getResult() orelse {
+        sendError("output buffer overflow");
+        return 1;
+    });
     return 0;
 }

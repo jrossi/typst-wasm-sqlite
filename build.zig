@@ -69,4 +69,46 @@ pub fn build(b: *std.Build) void {
     lib.root_module.addSystemIncludePath(b.path("libc-stubs"));
 
     b.installArtifact(lib);
+
+    // =========================================================================
+    // Unit test step
+    // =========================================================================
+
+    const test_step = b.step("test", "Run unit tests");
+    const json_mod = b.createModule(.{
+        .root_source_file = b.path("src/json.zig"),
+        .target = b.graph.host,
+    });
+    const test_mod = b.createModule(.{
+        .root_source_file = b.path("tests/test_json.zig"),
+        .target = b.graph.host,
+        .imports = &.{
+            .{ .name = "json", .module = json_mod },
+        },
+    });
+    const json_tests = b.addTest(.{
+        .root_module = test_mod,
+    });
+    test_step.dependOn(&b.addRunArtifact(json_tests).step);
+
+    // =========================================================================
+    // Generate test database step
+    // =========================================================================
+
+    const gen_testdb = b.addExecutable(.{
+        .name = "gen_testdb",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/gen_testdb.zig"),
+            .target = b.graph.host,
+        }),
+    });
+    gen_testdb.root_module.addCSourceFile(.{
+        .file = b.path("sqlite3.c"),
+        .flags = &.{"-DSQLITE_THREADSAFE=0"},
+    });
+    gen_testdb.root_module.addIncludePath(b.path("."));
+    gen_testdb.linkLibC();
+
+    const run_gen = b.addRunArtifact(gen_testdb);
+    b.step("gen-testdb", "Generate test database").dependOn(&run_gen.step);
 }

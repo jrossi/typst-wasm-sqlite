@@ -7,3 +7,4 @@
 *.pdf
 *.png
 *.wasm
+test/test.sqlite
