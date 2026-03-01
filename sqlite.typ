@@ -1,7 +1,7 @@
 // SQLite Plugin for Typst
 // Allows querying SQLite databases at compile time
 
-#let _plugin = plugin("typst_sqlite.wasm")
+#let _plugin = plugin("zig-out/bin/typst_sqlite_zig.wasm")
 
 /// Open a SQLite database from a file path
 /// Returns a database object with query methods

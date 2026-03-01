@@ -1,4 +1,26 @@
 [tools]
-rust = "latest"
 typst = "latest"
 zig = "latest"
+
+[tasks.build]
+description = "Build WASM plugin (release)"
+run = "zig build -Doptimize=ReleaseSmall"
+
+[tasks.build-debug]
+description = "Build WASM plugin (debug)"
+run = "zig build"
+
+[tasks.test]
+description = "Build and test with Typst"
+run = ["zig build -Doptimize=ReleaseSmall", "typst compile test.typ test.pdf"]
+
+[tasks.download-sqlite]
+description = "Download SQLite amalgamation"
+run = """
+curl -L https://www.sqlite.org/2024/sqlite-amalgamation-3470200.zip -o /tmp/sqlite.zip
+unzip -o /tmp/sqlite.zip -d /tmp/sqlite
+cp /tmp/sqlite/sqlite-amalgamation-3470200/sqlite3.c .
+cp /tmp/sqlite/sqlite-amalgamation-3470200/sqlite3.h .
+cp /tmp/sqlite/sqlite-amalgamation-3470200/sqlite3ext.h .
+rm -r /tmp/sqlite.zip /tmp/sqlite
+"""

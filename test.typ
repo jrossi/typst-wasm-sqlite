@@ -1,20 +1,20 @@
-#let plugin = plugin("target/wasm32-unknown-unknown/release/typst_sqlite.wasm")
+#let plugin = plugin("zig-out/bin/typst_sqlite_zig.wasm")
 
-= SQLite Plugin Test
+= Zig SQLite Plugin Test
 
-== Basic Test
-Hello message: #str(plugin.hello())
+== Hello
+#str(plugin.hello())
 
 == Load Database
 #let db = read("test.sqlite", encoding: none)
+DB size: #db.len() bytes
 
 == List Tables
 #let tables_json = str(plugin.tables(db))
 Tables: #tables_json
 
 == Query Data
-#let result_json = str(plugin.query(db, bytes("SELECT name, population FROM cities")))
-Result: #result_json
+#let result_json = str(plugin.query(db, bytes("SELECT name, country, population FROM cities ORDER BY population DESC LIMIT 10")))
 
 == Parse and Display
 #let result = json.decode(result_json)

@@ -1,4 +1,9 @@
+# Build output
 /target
-*.wasm
+/zig-out/
+/.zig-cache/
+
+# Generated files
 *.pdf
 *.png
+*.wasm
