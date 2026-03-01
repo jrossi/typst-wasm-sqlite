@@ -26,6 +26,14 @@ run = ["zig build gen-testdb", "zig build -Doptimize=ReleaseSmall", "typst compi
 description = "Run all tests"
 run = ["zig build test", "zig build gen-testdb", "zig build -Doptimize=ReleaseSmall", "typst compile test.typ test.pdf"]
 
+[tasks.gen-demodb]
+description = "Generate demo database"
+run = "zig build gen-demodb"
+
+[tasks.demo]
+description = "Build and compile demo report"
+run = ["zig build gen-demodb", "zig build -Doptimize=ReleaseSmall", "typst compile demo.typ demo.pdf"]
+
 [tasks.pre-commit]
 description = "Pre-commit hook: run unit tests"
 run = "zig build test"

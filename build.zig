@@ -111,4 +111,25 @@ pub fn build(b: *std.Build) void {
 
     const run_gen = b.addRunArtifact(gen_testdb);
     b.step("gen-testdb", "Generate test database").dependOn(&run_gen.step);
+
+    // =========================================================================
+    // Generate demo database step
+    // =========================================================================
+
+    const gen_demodb = b.addExecutable(.{
+        .name = "gen_demodb",
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("tests/gen_demodb.zig"),
+            .target = b.graph.host,
+        }),
+    });
+    gen_demodb.root_module.addCSourceFile(.{
+        .file = b.path("sqlite3.c"),
+        .flags = &.{"-DSQLITE_THREADSAFE=0"},
+    });
+    gen_demodb.root_module.addIncludePath(b.path("."));
+    gen_demodb.linkLibC();
+
+    const run_demo = b.addRunArtifact(gen_demodb);
+    b.step("gen-demodb", "Generate demo database").dependOn(&run_demo.step);
 }
