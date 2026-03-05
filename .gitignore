@@ -8,3 +8,4 @@
 *.wasm
 test/test.sqlite
 demo.sqlite
+/tmp/
