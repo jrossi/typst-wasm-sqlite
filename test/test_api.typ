@@ -1,7 +1,7 @@
 // API-level tests — sqlite.typ wrapper
 #import "../sqlite.typ": sqlite, sqlite-table, query-table
 
-#let db = sqlite("test/test.sqlite")
+#let db = sqlite(read("test.sqlite", encoding: none))
 
 // =============================================================================
 // db.query()

@@ -9,7 +9,7 @@
 #set text(size: 9.5pt, font: "New Computer Modern")
 #set heading(numbering: "1.")
 
-#let db = sqlite("demo.sqlite")
+#let db = sqlite(read("demo.sqlite", encoding: none))
 
 // Helper: format a number with commas
 #let fmt(n) = {

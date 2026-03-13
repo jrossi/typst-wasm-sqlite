@@ -4,7 +4,7 @@
 
 = City Population Data
 
-#let db = sqlite("test.sqlite")
+#let db = sqlite(read("test.sqlite", encoding: none))
 
 == All Cities
 #sqlite-table((db.query)("SELECT * FROM cities"))
