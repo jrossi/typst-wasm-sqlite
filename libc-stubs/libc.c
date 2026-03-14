@@ -188,7 +188,9 @@ void *malloc(size_t size) {
     return ptr;
 }
 
-void free(void *ptr) { (void)ptr; /* bump allocator doesn't free */ }
+void free(void *ptr) { (void)ptr; /* bump allocator doesn't free - reset via reset_sqlite_heap() */ }
+
+void reset_sqlite_heap(void) { bump_offset = 0; }
 
 void *realloc(void *ptr, size_t size) {
     if (!ptr) return malloc(size);

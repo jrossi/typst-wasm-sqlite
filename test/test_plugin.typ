@@ -122,3 +122,15 @@
 // Note: schema() injection defense (e.g. "cities; DROP TABLE cities") returns
 // error code 1 which causes a Typst compile error. The isValidTableName()
 // validation is tested at the Zig unit level.
+
+// =============================================================================
+// Memory pressure — many sequential queries don't exhaust the heap
+// =============================================================================
+
+#for i in range(20) {
+  let _ = json(plugin.query(db, bytes("SELECT * FROM cities")))
+  let _ = json(plugin.query(db, bytes("SELECT * FROM types_test")))
+  let _ = json(plugin.tables(db))
+  let _ = json(plugin.schema(db, bytes("cities")))
+}
+// If we get here without OOM, the heap is being properly reset

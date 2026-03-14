@@ -39,8 +39,11 @@ fn wasmAlloc(size: usize) ?[*]u8 {
     return ptr;
 }
 
+extern fn reset_sqlite_heap() void;
+
 fn resetHeap() void {
     heap_offset = 0;
+    reset_sqlite_heap();
 }
 
 // =============================================================================
